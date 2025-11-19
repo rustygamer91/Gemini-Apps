@@ -1,0 +1,5 @@
+{
+  "name": "Veritas Fact Checker",
+  "description": "A professional-grade AI fact-checking agent powered by Gemini 2.5 Flash and Google Search. Verifies claims, analyzes content credibility, and provides sourced evidence.",
+  "requestFramePermissions": []
+}
