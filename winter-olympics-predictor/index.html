@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winter Games '26 Dashboard | Medal Predictor</title>
+    <meta name="description"
+        content="AI-powered medal prediction dashboard for the 2026 Winter Olympics. Compare Gracenote, Historical, and Momentum models.">
+
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Winter Games '26 Dashboard">
+    <meta property="og:description"
+        content="Who will win in 2026? Simulate the medal tally with our multi-model AI predictor.">
+    <meta property="og:image"
+        content="https://images.unsplash.com/photo-1480094964558-d78990204641?q=80&w=1200&auto=format&fit=crop">
+
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --card-glass: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+
+            --titans-bg: linear-gradient(145deg, rgba(251, 191, 36, 0.05), rgba(251, 191, 36, 0.01));
+            --titans-border: rgba(251, 191, 36, 0.2);
+
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            --gold: #fbbf24;
+            --silver: #e2e8f0;
+            --bronze: #b45309;
+            --bar-fill: #38bdf8;
+
+            --success: #22c55e;
+            --danger: #ef4444;
+            --brand: #38bdf8;
+            --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        /* --- Layout --- */
+        .dashboard {
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            gap: 2rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.05em;
+        }
+
+        /* --- Model Selector --- */
+        .model-selector-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 20;
+        }
+
+        .custom-select-wrapper {
+            position: relative;
+            display: inline-block;
+            user-select: none;
+        }
+
+        .custom-select {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .custom-select__trigger {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 280px;
+        }
+
+        .custom-select__trigger:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--brand);
+        }
+
+        .arrow {
+            margin-left: 1rem;
+            font-size: 0.8rem;
+            transition: transform 0.3s;
+        }
+
+        .custom-select.open .arrow {
+            transform: rotate(180deg);
+        }
+
+        .custom-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 12px;
+            margin-top: 0.5rem;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateY(-10px);
+            transition: all 0.3s;
+            z-index: 50;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .custom-select.open .custom-options {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .custom-option {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .custom-option:last-child {
+            border-bottom: none;
+        }
+
+        .custom-option:hover {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--brand);
+        }
+
+        .custom-option.selected {
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--brand);
+            font-weight: 700;
+        }
+
+        .option-desc {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-top: 0.25rem;
+        }
+
+        /* --- Controls Toolbar --- */
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* --- Segmented Control --- */
+        .segmented-control {
+            display: inline-flex;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            height: 48px;
+        }
+
+        .segmented-option {
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+            position: relative;
+            z-index: 2;
+            user-select: none;
+        }
+
+        .segmented-option.active {
+            color: #0f172a;
+        }
+
+        .segmented-bg {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            height: calc(100% - 8px);
+            width: calc(50% - 4px);
+            /* Assumes 2 options */
+            background: var(--brand);
+            border-radius: 40px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
+        }
+
+        /* --- Sections --- */
+        .section-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--card-border);
+        }
+
+        .titans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+
+        .field-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--card-glass);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            backdrop-filter: blur(12px);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .titan-card {
+            background: var(--titans-bg);
+            border-color: var(--titans-border);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .titan-rank {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.75rem;
+            font-size: 3rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.05);
+            line-height: 1;
+        }
+
+        .titan-flag {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+
+        .titan-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .titan-total {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+        .titan-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* --- Bar Charts (The Field) --- */
+        .field-row {
+            display: grid;
+            grid-template-columns: 40px 140px 1fr 60px;
+            /* Rank | Name | Bar | Total */
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+        }
+
+        .field-row:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .rank {
+            font-weight: 600;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .country-lockup {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        .bar-container {
+            height: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .bar-segment {
+            height: 100%;
+            transition: width 1s ease-out;
+        }
+
+        .bar-g {
+            background: var(--gold);
+        }
+
+        .bar-s {
+            background: var(--silver);
+        }
+
+        .bar-b {
+            background: var(--bronze);
+        }
+
+        .total-medals {
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .trend-tag {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: auto;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .trend-up {
+            color: var(--success);
+        }
+
+        .trend-down {
+            color: var(--danger);
+        }
+
+        /* --- Insights Panel --- */
+        .insights-panel {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .insight-icon {
+            font-size: 2rem;
+        }
+
+        .insight-text h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: var(--brand);
+            margin-bottom: 0.25rem;
+        }
+
+        .insight-text p {
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            padding: 0 1.5rem;
+            height: 48px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
+            border: none;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 16px rgba(56, 189, 248, 0.5);
+        }
+
+        /* --- Canvas --- */
+        .canvas-confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 700px) {
+            .field-row {
+                grid-template-columns: 30px 40px 1fr 40px;
+                gap: 0.5rem;
+            }
+
+            .country-name-text {
+                display: none;
+            }
+
+            .country-lockup::after {
+                content: attr(data-code);
+                font-size: 0.9rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn,
+            .segmented-control {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .segmented-option {
+                flex: 1;
+            }
+        }
+
+        @media (min-width: 701px) {
+            .country-lockup::after {
+                content: '';
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas" class="canvas-confetti"></canvas>
+
+    <div class="dashboard">
+        <header>
+            <h1>Winter 2026 Dashboard</h1>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Projected Medal Tally</p>
+
+            <!-- Model Selector -->
+            <div class="model-selector-container">
+                <div class="custom-select-wrapper">
+                    <div class="custom-select">
+                        <div class="custom-select__trigger">
+                            <span id="selected-model-text">Gracenote Consensus</span>
+                            <div class="arrow">▼</div>
+                        </div>
+                        <div class="custom-options">
+                            <span class="custom-option selected" data-value="gracenote">
+                                Gracenote Consensus (VMT)
+                                <span class="option-desc">The Standard. Optimistic for USA/Germany.</span>
+                            </span>
+                            <span class="custom-option" data-value="historical">
+                                Beijing '22 Repeater
+                                <span class="option-desc">Conservative. Mirrors 2022 results (minus ROC).</span>
+                            </span>
+                            <span class="custom-option" data-value="momentum">
+                                Host & Momentum
+                                <span class="option-desc">Speculative. Boosts Italy (Host) & rising challengers.</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="runSimulation()">
+                    🎲 Run Simulation
+                </button>
+
+                <div class="segmented-control">
+                    <div class="segmented-bg" id="sort-bg"></div>
+                    <div class="segmented-option active" onclick="setSort('total', this)">By Total</div>
+                    <div class="segmented-option" onclick="setSort('gold', this)">By Gold</div>
+                </div>
+
+                <button class="btn" onclick="copyResults()">📋 Share</button>
+            </div>
+        </header>
+
+        <!-- Insights -->
+        <div id="insights-area" style="display:none">
+            <div class="insights-panel">
+                <div class="insight-icon">💡</div>
+                <div class="insight-text">
+                    <h3>Analyst Insight</h3>
+                    <p id="insight-content"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- The Titans (Top 5) -->
+        <div id="titans-area" style="display:none">
+            <div class="section-title">The Titans (Top 5)</div>
+            <div class="titans-grid" id="titans-grid">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- The Field (Rest) -->
+        <div id="field-area" style="display:none">
+            <div class="section-title">The Battle for the Rest</div>
+            <div class="field-list" id="field-list">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Multi-Model Data
+        const countryData = [
+            {
+                code: 'NO', name: 'Norway', flag: '🇳🇴', prevTotal: 37,
+                models: {
+                    gracenote: { g: 14, s: 13, b: 12, v: 4 },
+                    historical: { g: 16, s: 8, b: 13, v: 3 },
+                    momentum: { g: 13, s: 12, b: 11, v: 4 }
+                }
+            },
+            {
+                code: 'DE', name: 'Germany', flag: '🇩🇪', prevTotal: 27,
+                models: {
+                    gracenote: { g: 12, s: 12, b: 10, v: 3 },
+                    historical: { g: 12, s: 10, b: 5, v: 2 },
+                    momentum: { g: 11, s: 10, b: 8, v: 3 }
+                }
+            },
+            {
+                code: 'US', name: 'USA', flag: '🇺🇸', prevTotal: 25,
+                models: {
+                    gracenote: { g: 12, s: 10, b: 10, v: 3 },
+                    historical: { g: 8, s: 10, b: 7, v: 3 },
+                    momentum: { g: 11, s: 11, b: 9, v: 3 }
+                }
+            },
+            {
+                code: 'CA', name: 'Canada', flag: '🇨🇦', prevTotal: 26,
+                models: {
+                    gracenote: { g: 6, s: 8, b: 10, v: 3 },
+                    historical: { g: 4, s: 8, b: 14, v: 3 },
+                    momentum: { g: 7, s: 9, b: 11, v: 3 }
+                }
+            },
+            {
+                code: 'NL', name: 'Netherlands', flag: '🇳🇱', prevTotal: 17,
+                models: {
+                    gracenote: { g: 8, s: 7, b: 6, v: 2 },
+                    historical: { g: 8, s: 5, b: 4, v: 2 },
+                    momentum: { g: 7, s: 7, b: 5, v: 2 }
+                }
+            },
+            {
+                code: 'SE', name: 'Sweden', flag: '🇸🇪', prevTotal: 18,
+                models: {
+                    gracenote: { g: 8, s: 6, b: 6, v: 2 },
+                    historical: { g: 8, s: 5, b: 5, v: 2 },
+                    momentum: { g: 8, s: 6, b: 5, v: 2 }
+                }
+            },
+            {
+                code: 'CN', name: 'China', flag: '🇨🇳', prevTotal: 15,
+                models: {
+                    gracenote: { g: 6, s: 4, b: 3, v: 2 },
+                    historical: { g: 9, s: 4, b: 2, v: 2 },
+                    momentum: { g: 5, s: 4, b: 4, v: 2 }
+                }
+            },
+            {
+                code: 'AT', name: 'Austria', flag: '🇦🇹', prevTotal: 18,
+                models: {
+                    gracenote: { g: 6, s: 7, b: 6, v: 3 },
+                    historical: { g: 7, s: 7, b: 4, v: 3 },
+                    momentum: { g: 7, s: 8, b: 6, v: 3 }
+                }
+            },
+            {
+                code: 'IT', name: 'Italy', flag: '🇮🇹', prevTotal: 17,
+                models: {
+                    gracenote: { g: 4, s: 6, b: 7, v: 3 },
+                    historical: { g: 2, s: 7, b: 8, v: 3 },
+                    momentum: { g: 6, s: 7, b: 8, v: 4 }
+                }
+            },
+            {
+                code: 'FR', name: 'France', flag: '🇫🇷', prevTotal: 14,
+                models: {
+                    gracenote: { g: 5, s: 6, b: 6, v: 2 },
+                    historical: { g: 5, s: 7, b: 2, v: 2 },
+                    momentum: { g: 6, s: 6, b: 6, v: 2 }
+                }
+            },
+            {
+                code: 'CH', name: 'Switzerland', flag: '🇨🇭', prevTotal: 14,
+                models: {
+                    gracenote: { g: 6, s: 4, b: 6, v: 2 },
+                    historical: { g: 7, s: 2, b: 5, v: 2 },
+                    momentum: { g: 6, s: 5, b: 6, v: 2 }
+                }
+            },
+            {
+                code: 'JP', name: 'Japan', flag: '🇯🇵', prevTotal: 18,
+                models: {
+                    gracenote: { g: 3, s: 6, b: 8, v: 2 },
+                    historical: { g: 3, s: 6, b: 9, v: 2 },
+                    momentum: { g: 3, s: 5, b: 7, v: 2 }
+                }
+            },
+            {
+                code: 'RU', name: 'AIN (Neutral)', flag: '🏳️', prevTotal: 32,
+                models: {
+                    gracenote: { g: 0, s: 1, b: 1, v: 1 },
+                    historical: { g: 1, s: 2, b: 2, v: 2 },
+                    momentum: { g: 0, s: 0, b: 1, v: 1 }
+                }
+            },
+            {
+                code: 'KR', name: 'South Korea', flag: '🇰🇷', prevTotal: 9,
+                models: {
+                    gracenote: { g: 3, s: 3, b: 2, v: 2 },
+                    historical: { g: 2, s: 5, b: 2, v: 2 },
+                    momentum: { g: 3, s: 3, b: 2, v: 2 }
+                }
+            },
+            {
+                code: 'FI', name: 'Finland', flag: '🇫🇮', prevTotal: 8,
+                models: {
+                    gracenote: { g: 2, s: 3, b: 3, v: 1 },
+                    historical: { g: 2, s: 2, b: 4, v: 1 },
+                    momentum: { g: 2, s: 3, b: 3, v: 1 }
+                }
+            }
+        ];
+
+        let currentSim = [];
+        let sortMode = 'total';
+        let currentModel = 'gracenote';
+
+        // --- Model Selector Logic ---
+        document.querySelector('.custom-select-wrapper').addEventListener('click', function () {
+            this.querySelector('.custom-select').classList.toggle('open');
+        });
+
+        document.querySelectorAll('.custom-option').forEach(option => {
+            option.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (!this.classList.contains('selected')) {
+                    this.parentNode.querySelector('.custom-option.selected').classList.remove('selected');
+                    this.classList.add('selected');
+                    const value = this.getAttribute('data-value');
+                    const text = this.innerText.split('\n')[0].trim();
+                    document.getElementById('selected-model-text').textContent = text;
+                    currentModel = value;
+                    document.querySelector('.custom-select').classList.remove('open');
+                    runSimulation();
+                }
+            });
+        });
+
+        window.addEventListener('click', function (e) {
+            const select = document.querySelector('.custom-select');
+            if (!select.contains(e.target)) {
+                select.classList.remove('open');
+            }
+        });
+
+        function setSort(mode, element) {
+            sortMode = mode;
+            const bg = document.getElementById('sort-bg');
+            const options = document.querySelectorAll('.segmented-option');
+
+            options.forEach(opt => opt.classList.remove('active'));
+            if (element) element.classList.add('active');
+
+            if (mode === 'total') {
+                bg.style.transform = 'translateX(0)';
+            } else {
+                bg.style.transform = 'translateX(100%)';
+            }
+
+            if (currentSim.length > 0) render();
+        }
+
+        function simulate() {
+            return countryData.map(c => {
+                const modelParams = c.models[currentModel];
+                const noise = () => Math.floor(Math.random() * (modelParams.v * 2 + 1)) - modelParams.v;
+                let g = Math.max(0, modelParams.g + noise());
+                let s = Math.max(0, modelParams.s + noise());
+                let b = Math.max(0, modelParams.b + noise());
+                return { ...c, gold: g, silver: s, bronze: b, total: g + s + b };
+            });
+        }
+
+        function runSimulation() {
+            const btn = document.querySelector('.btn-primary');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '🔮 Calculating...';
+
+            setTimeout(() => {
+                currentSim = simulate();
+                render();
+                fireConfetti();
+                btn.innerHTML = originalText;
+            }, 600);
+        }
+
+        function render() {
+            currentSim.sort((a, b) => {
+                if (sortMode === 'total') {
+                    if (b.total !== a.total) return b.total - a.total;
+                    return b.gold - a.gold;
+                } else {
+                    if (b.gold !== a.gold) return b.gold - a.gold;
+                    return b.total - a.total;
+                }
+            });
+
+            const top5 = currentSim.slice(0, 5);
+            const rest = currentSim.slice(5, 15);
+            const maxTotal = top5[0].total;
+
+            const titansGrid = document.getElementById('titans-grid');
+            titansGrid.innerHTML = top5.map((n, i) => `
+                <div class="card titan-card">
+                    <div class="titan-rank">#${i + 1}</div>
+                    <span class="titan-flag">${n.flag}</span>
+                    <div class="titan-name">${n.name}</div>
+                    <div class="titan-total">${n.total} <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:400">medals</span></div>
+                    <div class="titan-sub">${n.gold}G · ${n.silver}S · ${n.bronze}B</div>
+                </div>
+            `).join('');
+
+            const fieldList = document.getElementById('field-list');
+            fieldList.innerHTML = rest.map((n, i) => {
+                const rank = i + 6;
+                const widthPct = (n.total / maxTotal) * 100;
+                const gPct = (n.gold / n.total) * 100;
+                const sPct = (n.silver / n.total) * 100;
+                const bPct = (n.bronze / n.total) * 100;
+                const diff = n.total - n.prevTotal;
+                let trendHtml = '';
+                if (diff > 0) trendHtml = `<span class="trend-tag trend-up">↑${diff}</span>`;
+                else if (diff < 0) trendHtml = `<span class="trend-tag trend-down">↓${Math.abs(diff)}</span>`;
+
+                return `
+                <div class="field-row">
+                    <div class="rank">#${rank}</div>
+                    <div class="country-lockup" data-code="${n.code}">
+                        <span class="flag">${n.flag}</span>
+                        <span class="country-name-text">${n.name}</span>
+                        ${trendHtml}
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-segment bar-g" style="width: ${gPct}%"></div>
+                        <div class="bar-segment bar-s" style="width: ${sPct}%"></div>
+                        <div class="bar-segment bar-b" style="width: ${bPct}%"></div>
+                    </div>
+                    <div class="total-medals">${n.total}</div>
+                </div>
+                `;
+            }).join('');
+
+            let insightText = "";
+            if (currentModel === 'gracenote') {
+                const usa = currentSim.find(c => c.code === 'US');
+                insightText = `<strong>Model Analysis (Gracenote):</strong> High variance detected for 🇺🇸 USA. The "NHL Effect" helps push them to <strong>${usa.total} medals</strong>.`;
+            } else if (currentModel === 'momentum') {
+                const italy = currentSim.find(c => c.code === 'IT');
+                insightText = `<strong>Model Analysis (Momentum):</strong> The "Host Bump" is real for 🇮🇹 Italy, projected here at <strong>${italy.total} medals</strong> (vs 17 in 2022).`;
+            } else {
+                const bigMover = currentSim.reduce((prev, current) => (current.total - current.prevTotal) > (prev.total - prev.prevTotal) ? current : prev);
+                insightText = `<strong>Model Analysis (Historical):</strong> Based on Beijing '22 trends, <strong>${bigMover.name}</strong> shows the strongest retention of form (+${Math.max(0, bigMover.total - bigMover.prevTotal)} vs prev).`;
+            }
+            document.getElementById('insight-content').innerHTML = insightText;
+            document.getElementById('insights-area').style.display = 'block';
+            document.getElementById('titans-area').style.display = 'block';
+            document.getElementById('field-area').style.display = 'block';
+        }
+
+        function copyResults() {
+            const text = `🏆 Winter 2026 Prediction (${currentModel}) 🏆\n\nTop 3 Titans:\n1. ${currentSim[0].name} (${currentSim[0].total})\n2. ${currentSim[1].name} (${currentSim[1].total})\n3. ${currentSim[2].name} (${currentSim[2].total})\n\nGenerated by Winter Games Dashboard`;
+            navigator.clipboard.writeText(text).then(() => alert('Summary copied to clipboard!'));
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeBtn() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeBtn); resizeBtn();
+
+        function fireConfetti() {
+            particles = [];
+            for (let i = 0; i < 100; i++) particles.push({
+                x: window.innerWidth / 2, y: window.innerHeight / 2 + 100,
+                vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20 - 10,
+                color: `hsl(${Math.random() * 360},100%,50%)`, size: Math.random() * 5 + 3, life: 100
+            });
+            animate();
+        }
+        function animate() {
+            if (particles.length === 0) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.life--;
+                ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size);
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+
+</html>
